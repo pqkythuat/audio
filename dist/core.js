@@ -1,7 +1,9 @@
+export function cleanCaption(text){return String(text).replace(/\[[^\]]*\]/g,'').replace(/>>/g,'').replace(/<[^>]*>/g,'').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'").replace(/&amp;/g,'&').split('\n').map(line=>line.replace(/[ \t]+/g,' ').trim()).filter(Boolean).join('\n').trim();}
+export function captionNeighbors(cues,index,selected=[],loop=false){const order=loop?[...new Set(selected)].filter(i=>cues[i]?.text).sort((a,b)=>a-b):cues.map((c,i)=>c.text?i:-1).filter(i=>i>=0);const position=order.indexOf(index);if(position<0)return {previous:-1,next:-1};const wrap=loop&&order.length>1;return {previous:position>0?order[position-1]:wrap?order.at(-1):-1,next:position<order.length-1?order[position+1]:wrap?order[0]:-1};}
 export function parseCaptions(text) {
  const cues=[];
  let current=null,skip=false;
- const flush=()=>{if(!current)return;const content=current.lines.join('\n').replace(/<[^>]*>/g,'').trim();if(content)cues.push({start:current.start,end:current.end,text:content});current=null;};
+ const flush=()=>{if(!current)return;const content=cleanCaption(current.lines.join('\n'));if(content)cues.push({start:current.start,end:current.end,text:content});current=null;};
  for(const raw of text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n')) {
   const line=raw.trim();
   if(!line){flush();skip=false;continue;}
