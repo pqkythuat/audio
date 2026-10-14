@@ -2,4 +2,9 @@
 .cue p{white-space:pre-line}
 #captionPreview{margin-top:15px;padding:12px;background:#edf2e4;border-radius:8px;font-size:11px}
 #captionPreview:empty{display:none}
+.cue p.cue-ipa{color:#356d58;font-family:'Segoe UI','Arial',sans-serif;font-size:14px;margin-top:7px;line-height:1.7;overflow-wrap:anywhere}
+.main-ipa{margin-top:8px;border-radius:12px;background:#e6efe3;padding:18px 24px;color:#285c47;text-align:center;font-family:'Segoe UI','Arial',sans-serif;font-size:19px;line-height:1.7;white-space:pre-line;overflow-wrap:anywhere}
+.ipa-option{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-weight:600}
+.ipa-option input{accent-color:#153e36;width:18px;height:18px}
+.ipa-help{font-size:10px;margin:0 0 16px;color:#6c7971}.ipa-help a{color:#356d58}
 #captionPreview p{white-space:pre-line;border-top:1px solid #d5dfcb;margin:8px 0 0;padding-top:8px;color:#213b34}

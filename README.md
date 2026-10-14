@@ -8,4 +8,4 @@ Tính năng: thêm/chỉnh sửa/xóa audio (tối đa 200 MB/bài), SRT/VTT, t�
 
 Triển khai thư mục `dist` lên hosting HTTPS. Không mở trực tiếp index.html bằng file://. Dữ liệu gắn với trình duyệt và địa chỉ website; đổi địa chỉ cần xuất/nhập bản sao lưu. Xóa dữ liệu website có thể xóa thư viện. Sao lưu JSON có thể tốn bộ nhớ với thư viện lớn vì audio được mã hóa Base64.
 
-Giao diện dùng font Google Fonts khi có mạng; offline dùng font hệ thống. Không có tự tạo phụ đề hoặc IPA trong phiên bản này.
+Giao diện dùng font Google Fonts khi có mạng; offline dùng font hệ thống. IPA Anh–Mỹ tra từng từ trong bộ dữ liệu CMUdict đóng gói sẵn (126.046 mục), bỏ chú thích audio và đánh dấu từ chưa có bằng ⟨từ⟩. Nút Hiển thị IPA lưu lựa chọn trên thiết bị. Phiên âm từ điển không thể hiện nối âm hoặc tự chọn nghĩa của từ có nhiều cách đọc. Xem dist/IPA-LICENSE.txt. Tạo lại dữ liệu bằng `node scripts/build-ipa.mjs` sau khi cài dependencies. Không có tự tạo phụ đề trong phiên bản này.
