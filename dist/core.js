@@ -1,18 +1,25 @@
 export function parseCaptions(text) {
  const cues=[];
- for(const block of text.replace(/^\uFEFF/,'').replace(/\r/g,'').split(/\n\s*\n/)) {
-  const lines=block.trim().split('\n'), i=lines.findIndex(l=>l.includes('-->'));
-  if(i<0) continue;
-  if(/^(NOTE|STYLE|REGION)(\s|$)/.test(lines[0])) continue;
-  const m=lines[i].match(/((?:\d+:)?\d{2}:\d{2}[.,]\d{3})\s*-->\s*((?:\d+:)?\d{2}:\d{2}[.,]\d{3})/);
+ let current=null,skip=false;
+ const flush=()=>{if(!current)return;const content=current.lines.join('\n').replace(/<[^>]*>/g,'').trim();if(content)cues.push({start:current.start,end:current.end,text:content});current=null;};
+ for(const raw of text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n')) {
+  const line=raw.trim();
+  if(!line){flush();skip=false;continue;}
+  if(skip)continue;
+  if(!current&&/^(NOTE|STYLE|REGION)(\s|$)/.test(line)){skip=true;continue;}
+  if(!line.includes('-->')){if(current)current.lines.push(line);continue;}
+  // Cue timestamps delimit entries even when their separating blank lines are missing.
+  if(current&&current.lines.length>1&&/^\d+$/.test(current.lines.at(-1)))current.lines.pop();
+  flush();
+  const m=line.match(/^((?:\d+:)?\d{2}:\d{2}[.,]\d{3})\s*-->\s*((?:\d+:)?\d{2}:\d{2}[.,]\d{3})(?:\s+.*)?$/);
   if(!m) throw Error('Mốc thời gian phụ đề không hợp lệ.');
   for(const stamp of [m[1],m[2]]){const parts=stamp.replace(',','.').split(':');if(Number(parts.at(-1))>=60||Number(parts.at(-2))>=60)throw Error('Phút và giây trong mốc phụ đề phải nhỏ hơn 60.');}
   const seconds=s=>s.replace(',','.').split(':').reduce((a,n)=>a*60+Number(n),0);
   const start=seconds(m[1]),end=seconds(m[2]);
-  const content=lines.slice(i+1).join(' ').replace(/<[^>]*>/g,'').trim();
   if(end<=start) throw Error('Thời gian kết thúc phải sau thời gian bắt đầu.');
-  if(content) cues.push({start,end,text:content});
+  current={start,end,lines:[]};
  }
+ flush();
  if(!cues.length) throw Error('Không tìm thấy phụ đề hợp lệ trong file SRT/VTT.');
  return cues.sort((a,b)=>a.start-b.start);
 }

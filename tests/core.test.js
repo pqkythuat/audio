@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseCaptions,parseRange,continuousBlocks} from '../dist/core.js';
-test('SRT preserves timing and multiline text without executing markup',()=>{assert.deepEqual(parseCaptions('1\n00:00:01,200 --> 00:00:04,500\n<b>Hello.</b>\nSecond sentence.\n\n2\n00:00:06,000 --> 00:00:07,000\nNext'),[{start:1.2,end:4.5,text:'Hello. Second sentence.'},{start:6,end:7,text:'Next'}]);});
+test('SRT preserves timing and multiline text without executing markup',()=>{assert.deepEqual(parseCaptions('1\n00:00:01,200 --> 00:00:04,500\n<b>Hello.</b>\nSecond sentence.\n\n2\n00:00:06,000 --> 00:00:07,000\nNext'),[{start:1.2,end:4.5,text:'Hello.\nSecond sentence.'},{start:6,end:7,text:'Next'}]);});
+test('SRT without blank separators creates one cue per timestamp',()=>{assert.deepEqual(parseCaptions('1\n00:00:01,000 --> 00:00:02,000\nFirst\n2\n00:00:03,000 --> 00:00:04,000\nSecond\n3\n00:00:05,000 --> 00:00:06,000\nThird'),[{start:1,end:2,text:'First'},{start:3,end:4,text:'Second'},{start:5,end:6,text:'Third'}]);});
+test('VTT without blank separators and CR-only lines are supported',()=>{assert.deepEqual(parseCaptions('WEBVTT\r00:01.000 --> 00:02.000\rFirst\r00:03.000 --> 00:04.000\rSecond'),[{start:1,end:2,text:'First'},{start:3,end:4,text:'Second'}]);});
 test('VTT allows minutes and cue settings',()=>{assert.deepEqual(parseCaptions('WEBVTT\n\n00:01.000 --> 00:02.500 align:start\nHello'),[{start:1,end:2.5,text:'Hello'}]);});
 test('rejects invalid caption timing',()=>{assert.throws(()=>parseCaptions('1\n00:00:02,000 --> 00:00:01,000\nHello'));assert.throws(()=>parseCaptions('broken'));});
 test('rejects invalid minutes/seconds and ignores VTT notes',()=>{assert.throws(()=>parseCaptions('1\n00:99:01,000 --> 02:00:01,000\nHello'));assert.deepEqual(parseCaptions('WEBVTT\n\nNOTE comment --> no timestamp\n\n00:01.000 --> 00:02.000\nHello'),[{start:1,end:2,text:'Hello'}]);});
