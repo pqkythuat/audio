@@ -2,7 +2,7 @@
 
 Ứng dụng thư viện audio lưu trên thiết bị bằng IndexedDB. Không gửi audio lên máy chủ.
 
-Chạy `npm start` rồi mở http://127.0.0.1:4173. Chạy `npm test` để kiểm tra xử lý phụ đề và khoảng câu.
+Chạy `npm start` rồi mở http://127.0.0.1:4173. Để chạy kiểm tra, dùng `npm install` rồi `npm test` (PowerShell dùng `npm.cmd` nếu script bị chặn). Kiểm tra tự động dùng mô phỏng DOM/audio và IndexedDB để kiểm chứng đổi bài, chỉnh sửa, lưu tiến độ, phát lặp và khôi phục; chưa thay thế kiểm thử trên trình duyệt thật.
 
 Tính năng: thêm/chỉnh sửa/xóa audio (tối đa 200 MB/bài), SRT/VTT, tìm kiếm, lưu tiến độ/tốc độ/câu đã chọn, lặp A–B và lặp nhóm câu, chỉnh lệch phụ đề, xuất/nhập JSON chứa audio, giao diện offline.
 

@@ -3,8 +3,10 @@ export function parseCaptions(text) {
  for(const block of text.replace(/^\uFEFF/,'').replace(/\r/g,'').split(/\n\s*\n/)) {
   const lines=block.trim().split('\n'), i=lines.findIndex(l=>l.includes('-->'));
   if(i<0) continue;
+  if(/^(NOTE|STYLE|REGION)(\s|$)/.test(lines[0])) continue;
   const m=lines[i].match(/((?:\d+:)?\d{2}:\d{2}[.,]\d{3})\s*-->\s*((?:\d+:)?\d{2}:\d{2}[.,]\d{3})/);
   if(!m) throw Error('Mốc thời gian phụ đề không hợp lệ.');
+  for(const stamp of [m[1],m[2]]){const parts=stamp.replace(',','.').split(':');if(Number(parts.at(-1))>=60||Number(parts.at(-2))>=60)throw Error('Phút và giây trong mốc phụ đề phải nhỏ hơn 60.');}
   const seconds=s=>s.replace(',','.').split(':').reduce((a,n)=>a*60+Number(n),0);
   const start=seconds(m[1]),end=seconds(m[2]);
   const content=lines.slice(i+1).join(' ').replace(/<[^>]*>/g,'').trim();
@@ -28,11 +30,12 @@ export function parseRange(value,count) {
  }
  return [...found].sort((a,b)=>a-b);
 }
-export function continuousBlocks(cues,selected,offset=0) {
+export function continuousBlocks(cues,selected,offset=0,duration=Infinity) {
  const blocks=[];
- for(const index of [...selected].sort((a,b)=>a-b)) {
+ for(const index of [...new Set(selected)].sort((a,b)=>a-b)) {
   const cue=cues[index];if(!cue) continue;
-  const start=Math.max(0,cue.start+offset),end=Math.max(0,cue.end+offset);
+  const start=Math.max(0,cue.start+offset),end=Math.min(duration,Math.max(0,cue.end+offset));
+  if(end<=start) continue;
   const prev=blocks.at(-1);
   if(prev&&index===prev.last+1) {prev.end=Math.max(prev.end,end);prev.last=index;}
   else blocks.push({start,end,last:index});

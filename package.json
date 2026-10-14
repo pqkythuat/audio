@@ -1,1 +1,1 @@
-{"name":"lang-nghe","private":true,"type":"module","scripts":{"test":"node --test tests/core.test.js","start":"node server.mjs"}}
+{"name":"lang-nghe","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.js","start":"node server.mjs"},"devDependencies":{"fake-indexeddb":"^6.2.5"}}
