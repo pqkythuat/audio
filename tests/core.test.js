@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {parseCaptions,parseRange,continuousBlocks} from '../dist/core.js';
+test('SRT preserves timing and multiline text without executing markup',()=>{assert.deepEqual(parseCaptions('1\n00:00:01,200 --> 00:00:04,500\n<b>Hello.</b>\nSecond sentence.\n\n2\n00:00:06,000 --> 00:00:07,000\nNext'),[{start:1.2,end:4.5,text:'Hello. Second sentence.'},{start:6,end:7,text:'Next'}]);});
+test('VTT allows minutes and cue settings',()=>{assert.deepEqual(parseCaptions('WEBVTT\n\n00:01.000 --> 00:02.500 align:start\nHello'),[{start:1,end:2.5,text:'Hello'}]);});
+test('rejects invalid caption timing',()=>{assert.throws(()=>parseCaptions('1\n00:00:02,000 --> 00:00:01,000\nHello'));assert.throws(()=>parseCaptions('broken'));});
+test('strict ranges, duplicates and reversed intervals',()=>{assert.deepEqual(parseRange('3-1,3,5',5),[0,1,2,4]);assert.deepEqual(parseRange('*',3),[0,1,2]);for(const v of ['5abc','0','1-8','1-2-3'])assert.throws(()=>parseRange(v,5));});
+test('continuous selections keep unselected gaps and apply offset',()=>{const cues=[{start:1,end:2},{start:3,end:4},{start:5,end:6},{start:7,end:8}];assert.deepEqual(continuousBlocks(cues,[0,1,3],-.5),[{start:.5,end:3.5,last:1},{start:6.5,end:7.5,last:3}]);});
