@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {indexedDB} from 'fake-indexeddb';
 import {readFileSync} from 'node:fs';
+import {subtitleFile} from '../dist/study-core.js';
 const elements=new Map();
 class Element {
  set textContent(value){this._text=String(value);this.children=[];}get textContent(){return this.children.length?this.children.map(c=>c.textContent).join(''):this._text||'';}
@@ -109,5 +110,7 @@ test('application lifecycle regressions',async t=>{
   assert.equal((await read('one')).cues[0].segment_id,first.segment_id);assert.equal((await read('one')).subtitle_version_id,'editor-version');
   await app.studyRestore(snapshot);assert.equal((await read('one')).cues[0].text,'Edited safely');assert.ok((await all()).some(b=>b.id!=='one'&&b.cues[0]?.text===first.text));
   assert.ok((await app.studySnapshot()).files.find(f=>f.id==='one').blob.size>0);
+  const hundred=Array.from({length:100},(_,i)=>({segment_id:'stable-'+i,start:Number((i*.18+.001).toFixed(3)),end:Number((i*.18+.091).toFixed(3)),text:'Line '+i}));
+  await app.studyApply({...app.studyContext().book,subtitle_version_id:'hundred',cues:hundred,caption:subtitleFile(hundred)});assert.deepEqual((await read('one')).cues.map(c=>c.segment_id),hundred.map(c=>c.segment_id));
  });
 });
