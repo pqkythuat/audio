@@ -1,0 +1,12 @@
+import {mkdir,writeFile,chmod} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const assets={win32:'yt-dlp.exe',linux:'yt-dlp_linux',darwin:'yt-dlp_macos'};
+const name=assets[process.platform];if(!name||process.arch!=='x64'&&process.platform!=='darwin')throw Error('Cài yt-dlp cho hệ điều hành này và đặt YTDLP_PATH.');
+const response=await fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',{headers:{'User-Agent':'lang-nghe-caption-setup'}});if(!response.ok)throw Error('Không đọc được bản phát hành yt-dlp.');const release=await response.json();
+const binary=release.assets.find(a=>a.name===name),checksums=release.assets.find(a=>a.name==='SHA2-256SUMS');if(!binary||!checksums)throw Error('Thiếu file cài đặt hoặc checksum.');
+const [binaryResponse,checksumResponse]=await Promise.all([fetch(binary.browser_download_url),fetch(checksums.browser_download_url)]);if(!binaryResponse.ok||!checksumResponse.ok)throw Error('Không tải được yt-dlp.');
+const data=Buffer.from(await binaryResponse.arrayBuffer()),sums=await checksumResponse.text();
+const expected=sums.split('\n').map(s=>s.trim().split(/\s+/)).find(parts=>parts[1]?.replace(/^\*/,'')===name)?.[0];
+if(!expected||createHash('sha256').update(data).digest('hex')!==expected)throw Error('Checksum yt-dlp không khớp.');
+await mkdir('.tools',{recursive:true});await writeFile('.tools/'+name,data);if(process.platform!=='win32')await chmod('.tools/'+name,0o755);
+console.log(`Đã cài yt-dlp ${release.tag_name}; đã kiểm tra SHA-256.`);

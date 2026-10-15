@@ -1,5 +1,12 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
+import {createAuth} from './auth.mjs';
+import {createSharedLibrary} from './shared-library.mjs';
+import {createYouTubeCaptions} from './youtube-captions.mjs';
 const root=resolve('dist');
-createServer(async(req,res)=>{try{const path=resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(path!==root&&!path.startsWith(root+'\\')&&!path.startsWith(root+'/')){res.writeHead(403).end();return;}const file=path===root?resolve(root,'index.html'):path;const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml'})[extname(file)]||'application/octet-stream');res.end(data);}catch{res.writeHead(404).end('Not found');}}).listen(4173,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:4173'));
+const port=Number(process.env.PORT)||4173;
+const shared=createSharedLibrary({directory:process.env.SHARED_DIRECTORY||'data/shared'});
+const captions=createYouTubeCaptions();
+const auth=createAuth({clientId:process.env.GOOGLE_CLIENT_ID,origin:process.env.APP_ORIGIN||`http://127.0.0.1:${port}`,adminEmails:(process.env.ADMIN_EMAILS||'').split(','),file:process.env.ACCOUNTS_FILE||'data/accounts.json',demo:process.env.AUTH_DEMO==='true',shared,captions});
+createServer(async(req,res)=>{try{const pathname=new URL(req.url,'http://localhost').pathname;if(await auth(req,res,pathname))return;const path=resolve(root,'.'+decodeURIComponent(pathname));if(path!==root&&!path.startsWith(root+'\\')&&!path.startsWith(root+'/')){res.writeHead(403).end();return;}const file=path===root?resolve(root,'index.html'):path;const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml'})[extname(file)]||'application/octet-stream');res.end(data);}catch{res.writeHead(404).end('Not found');}}).listen(port,'127.0.0.1',()=>console.log(`Local: http://127.0.0.1:${port}`));
