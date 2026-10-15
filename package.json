@@ -7,13 +7,16 @@
     "start": "node server.mjs",
     "start:demo": "node --env-file=.env.demo server.mjs",
     "start:configured": "node --env-file=.env server.mjs",
-    "setup:captions": "node scripts/setup-captions.mjs"
+    "setup:captions": "node scripts/setup-captions.mjs",
+    "build:cloud": "node scripts/build-cloud.mjs"
   },
   "devDependencies": {
     "cmu-pronouncing-dictionary": "^3.0.0",
+    "esbuild": "^0.28.2",
     "fake-indexeddb": "^6.2.5"
   },
   "dependencies": {
-    "google-auth-library": "^11.3.0"
+    "google-auth-library": "^11.3.0",
+    "jose": "^6.2.12"
   }
 }

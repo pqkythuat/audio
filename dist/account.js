@@ -43,17 +43,17 @@ async function init(){
    return;
   }
   const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;
-  script.onload=()=>{google.accounts.id.initialize({client_id:state.clientId,callback:async({credential})=>{el('authGateMessage').textContent='Đang đăng nhập…';try{await api('/api/login',{method:'POST',body:JSON.stringify({credential})});location.reload();}catch(e){el('authGateMessage').textContent=e.message;}}});for(const id of ['googleSignIn','accountGoogleSignIn'])google.accounts.id.renderButton(el(id),{theme:'outline',size:'large',text:'signin_with',locale:'vi'});};
+  script.onload=()=>{google.accounts.id.initialize({client_id:state.clientId,...(state.nonce?{nonce:state.nonce}:{}),callback:async({credential})=>{el('authGateMessage').textContent='Đang đăng nhập…';try{await api('/api/login',{method:'POST',body:JSON.stringify({credential})});location.reload();}catch(e){el('authGateMessage').textContent=e.message;}}});for(const id of ['googleSignIn','accountGoogleSignIn'])google.accounts.id.renderButton(el(id),{theme:'outline',size:'large',text:'signin_with',locale:'vi'});};
   script.onerror=()=>{el('authGateMessage').textContent='Không tải được đăng nhập Google. Kiểm tra kết nối và tải lại.';};document.head.append(script);return;
  }else{
   el('accountButton').textContent=state.user.name;el('accountSummary').textContent=state.user.name;el('accountEmail').textContent=state.user.email;el('accountRole').textContent=state.user.role==='admin'?'Quản trị viên':'Thành viên';el('logout').hidden=false;el('manageAccounts').hidden=state.user.role!=='admin';
-  globalThis.langNgheAccountId=state.user.id;
+  globalThis.langNgheAccountId=state.user.id;globalThis.langNgheSharedUploadMaxBytes=state.sharedUploadMaxBytes;
   if(state.demo)message('Đang dùng tài khoản thử nghiệm trên máy này. Chưa kết nối Google.');
   // Recheck account status when returning to the app and invalidate disabled sessions.
   const recheck=async()=>{try{const next=await api('/api/session');if(!next.user||next.user.id!==state.user.id)location.reload();}catch{}};
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)recheck();});setInterval(recheck,60000);
  }
- const app=await import('./app.js?v=29');
- if(state.user){const {initSharedLibrary}=await import('./shared-library.js?v=29');await initSharedLibrary({user:state.user,addToPersonal:app.addSharedToPersonal});}
+ const app=await import('./app.js?v=30');
+ if(state.user){const {initSharedLibrary}=await import('./shared-library.js?v=30');await initSharedLibrary({user:state.user,addToPersonal:app.addSharedToPersonal});}
 }
 init().catch(e=>message(e.message));

@@ -4,7 +4,7 @@ import {createCaptionPicker} from './caption-picker.js?v=27';
 
 export async function initSharedLibrary({user,addToPersonal}){
  const $=id=>document.getElementById(id);let books=[];
- const admin=user.role==='admin';$('sharedPanel').hidden=false;$('sharedUploadToggle').hidden=!admin;
+ const uploadLimit=globalThis.langNgheSharedUploadMaxBytes||200*1024*1024;const admin=user.role==='admin';$('sharedPanel').hidden=false;$('sharedUploadToggle').hidden=!admin;
  const status=text=>{$('sharedStatus').textContent=text;};
  const youtubeCaptions=createCaptionPicker({prefix:'sharedYtCaption',urlInput:$('sharedYouTubeUrl'),fileInput:$('sharedCaption'),sourceInput:$('sharedSource'),saveLabel:'Tải lên',onSelected:cues=>{status('Đã lấy '+cues.length+' đoạn phụ đề. Bấm Tải lên để đăng bài.');showPreview(cues);},onReset:()=>showPreview([])});
  function showPreview(cues){$('sharedCaptionPreview').replaceChildren();for(const cue of cues.slice(0,5)){const line=document.createElement('p');line.textContent=`${formatTime(cue.start)} → ${formatTime(cue.end)} · ${cue.text}`;$('sharedCaptionPreview').append(line);}}
@@ -41,7 +41,7 @@ export async function initSharedLibrary({user,addToPersonal}){
   try{
    const youtube=$('sharedSource').value==='youtube',link=youtube?parseYouTubeLink($('sharedYouTubeUrl').value):null,file=youtube?null:$('sharedAudio').files[0],subtitle=$('sharedCaption').files[0],name=$('sharedName').value.trim();
    if(!name||name.length>150)throw Error('Nhập tên bài, tối đa 150 ký tự.');
-   if(!youtube&&(!file||!file.size||file.size>200*1024*1024))throw Error('Chọn audio có dung lượng tối đa 200 MB.');
+   if(!youtube&&(!file||!file.size||file.size>uploadLimit))throw Error('Chọn audio có dung lượng tối đa '+Math.floor(uploadLimit/1024/1024)+' MB.');
    if(subtitle?.size>5*1024*1024)throw Error('Phụ đề tối đa 5 MB.');
    const duration=youtube?0:await durationOf(file),caption=subtitle?await subtitle.text():youtubeCaptions.current()?.text||'';if(caption.trim())parseCaptions(caption);
    status('Đang tải bài lên cho mọi người…');

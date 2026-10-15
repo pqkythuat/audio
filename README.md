@@ -1,5 +1,11 @@
 # Lắng nghe
 
+## Bản công khai trên audio.ttpq.net
+
+Bản công khai dùng Cloudflare Worker (`worker/index.js`) và R2 (`BUCKET`) để xác minh Google ID token, lưu tài khoản/quyền, phiên đăng nhập và bài dùng chung. Client Secret không sử dụng. Các biến runtime là `GOOGLE_CLIENT_ID`, `APP_ORIGINS` và `ADMIN_EMAILS`; giữ giá trị thật trong Sites, không đưa vào nguồn. Email thuộc `ADMIN_EMAILS` được cấp Admin khi tạo tài khoản lần đầu, còn lại là Thành viên. Google Cloud cần cho phép JavaScript origin `https://audio.ttpq.net`.
+
+Chạy `npm run build:cloud` để đóng gói Worker cùng các asset hiện có; không chạy `prepare-static.mjs` cho bản này. Giữ nguyên project ID và tên miền khi xuất bản. Bản máy chủ Node bên dưới vẫn dùng cho local/VPS, còn production không chạy Node hoặc yt-dlp. Trên Worker, bài chung tối đa 90 MB; lấy phụ đề trực tiếp từ YouTube cần dịch vụ riêng, vẫn có thể tải SRT/VTT. Thư viện cá nhân tiếp tục lưu trên trình duyệt theo Google user ID, chưa đồng bộ file riêng giữa thiết bị.
+
 Ứng dụng thư viện audio cá nhân lưu trên thiết bị bằng IndexedDB. Các bài dùng chung do Admin tải lên được lưu trên máy chủ.
 
 ## Tài khoản và phân quyền
