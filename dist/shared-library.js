@@ -1,10 +1,12 @@
+import {bindAutoTitle} from './auto-title.js?v=31';
 import {parseCaptions,formatTime} from './core.js?v=8';
 import {parseYouTubeLink} from './youtube.js?v=27';
 import {createCaptionPicker} from './caption-picker.js?v=27';
 
-export async function initSharedLibrary({user,addToPersonal}){
+export async function initSharedLibrary({user,addToPersonal,setSharedLibrary}){
  const $=id=>document.getElementById(id);let books=[];
  const uploadLimit=globalThis.langNgheSharedUploadMaxBytes||200*1024*1024;const admin=user.role==='admin';$('sharedPanel').hidden=false;$('sharedUploadToggle').hidden=!admin;
+ const fillTitle=bindAutoTitle({name:$('sharedName'),file:$('sharedAudio'),url:$('sharedYouTubeUrl'),source:$('sharedSource')});
  const status=text=>{$('sharedStatus').textContent=text;};
  const youtubeCaptions=createCaptionPicker({prefix:'sharedYtCaption',urlInput:$('sharedYouTubeUrl'),fileInput:$('sharedCaption'),sourceInput:$('sharedSource'),saveLabel:'Tải lên',onSelected:cues=>{status('Đã lấy '+cues.length+' đoạn phụ đề. Bấm Tải lên để đăng bài.');showPreview(cues);},onReset:()=>showPreview([])});
  function showPreview(cues){$('sharedCaptionPreview').replaceChildren();for(const cue of cues.slice(0,5)){const line=document.createElement('p');line.textContent=`${formatTime(cue.start)} → ${formatTime(cue.end)} · ${cue.text}`;$('sharedCaptionPreview').append(line);}}
@@ -14,21 +16,19 @@ export async function initSharedLibrary({user,addToPersonal}){
   if(!response.ok){const error=await response.json().catch(()=>({}));throw Error(error.error||'Không kết nối được thư viện dùng chung.');}
   return response.json();
  }
- function render(){
-  const q=$('sharedSearch').value.trim().toLocaleLowerCase('vi');$('sharedList').replaceChildren();
-  const filtered=books.filter(b=>b.name.toLocaleLowerCase('vi').includes(q));
-  if(!filtered.length){const empty=document.createElement('p');empty.className='muted';empty.textContent=q?'Không tìm thấy bài dùng chung.':'Chưa có bài dùng chung. Admin có thể tải bài lên tại đây.';$('sharedList').append(empty);}
-  for(const book of filtered){
+ const pinKey='lang-nghe-shared-pins-'+user.id;let personalPins=[];try{personalPins=JSON.parse(localStorage.getItem(pinKey)||'[]');if(!Array.isArray(personalPins))personalPins=[];}catch{}
+ function render(){setSharedLibrary(books.map(b=>({...b,pinned:b.pinned||personalPins.includes(b.id)})),renderBook);}
+ function renderBook(book){
    const row=document.createElement('div');row.className='shared-book'+(book.pinned?' shared-pinned':'');
-   const info=document.createElement('div'),title=document.createElement('b'),detail=document.createElement('small');title.textContent=(book.pinned?'📌 ':'')+book.name;detail.textContent=`${book.source==='youtube'?'YouTube':formatTime(book.duration)+' · '+(book.size/1024/1024).toFixed(1)+' MB'} · ${book.cues.length} đoạn`;info.append(title,detail);
+   const info=document.createElement('div'),title=document.createElement('b'),detail=document.createElement('small');title.textContent=(book.pinned?'📌 ':'')+book.name;detail.textContent=`Dùng chung · ${book.source==='youtube'?'YouTube':formatTime(book.duration)+' · '+(book.size/1024/1024).toFixed(1)+' MB'} · ${book.cues.length} đoạn`;info.append(title,detail);
    const actions=document.createElement('div');actions.className='book-actions';
-   const add=document.createElement('button');add.textContent='Thêm vào của tôi';add.onclick=async()=>{add.disabled=true;status('Đang thêm bài vào danh sách của bạn…');try{let blob=null;if(book.source!=='youtube'){const response=await fetch('/api/shared/'+book.id+'/audio',{cache:'no-store'});if(!response.ok)throw Error('Không tải được audio. Bài có thể đã bị xóa hoặc phiên đăng nhập đã hết hạn.');blob=await response.blob();}await addToPersonal(book,blob);status('Bài đã có trong danh sách của bạn. Tiến độ và chỉnh sửa được lưu riêng.');}catch(e){status(e.message);}finally{add.disabled=false;}};actions.append(add);
+   const add=document.createElement('button');add.textContent='Nghe';add.onclick=async()=>{add.disabled=true;status('Đang thêm bài vào danh sách của bạn…');try{let blob=null;if(book.source!=='youtube'){const response=await fetch('/api/shared/'+book.id+'/audio',{cache:'no-store'});if(!response.ok)throw Error('Không tải được audio. Bài có thể đã bị xóa hoặc phiên đăng nhập đã hết hạn.');blob=await response.blob();}await addToPersonal(book,blob);status('Bài đã có trong danh sách của bạn. Tiến độ và chỉnh sửa được lưu riêng.');}catch(e){status(e.message);}finally{add.disabled=false;}};actions.append(add);
+   if(!admin){const pin=document.createElement('button');const own=personalPins.includes(book.id);pin.textContent=own?'Bỏ ghim riêng':'Ghim riêng';pin.setAttribute('aria-pressed',String(own));pin.onclick=()=>{personalPins=own?personalPins.filter(id=>id!==book.id):[...personalPins,book.id];try{localStorage.setItem(pinKey,JSON.stringify(personalPins));}catch{status('Không lưu được lựa chọn ghim.');}render();};actions.append(pin);}
    if(admin){
     const pin=document.createElement('button');pin.textContent=book.pinned?'Bỏ ghim':'Ghim';pin.setAttribute('aria-pressed',String(book.pinned));pin.onclick=async()=>{pin.disabled=true;try{await api('/api/shared/'+book.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pinned:!book.pinned})});await refresh();status(book.pinned?'Đã bỏ ghim.':'Đã ghim bài lên đầu cho mọi người.');}catch(e){status(e.message);pin.disabled=false;}};
     const remove=document.createElement('button');remove.className='danger';remove.textContent='Xóa bài chung';remove.onclick=async()=>{if(!confirm(`Xóa bài dùng chung “${book.name}”? Các bản đã thêm vào danh sách riêng vẫn được giữ.`))return;remove.disabled=true;try{await api('/api/shared/'+book.id,{method:'DELETE'});await refresh();status('Đã xóa bài khỏi thư viện dùng chung.');}catch(e){status(e.message);remove.disabled=false;}};actions.append(pin,remove);
    }
-   row.append(info,actions);$('sharedList').append(row);
-  }
+   row.append(info,actions);return row;
  }
  async function refresh(){const data=await api('/api/shared');books=data.books;render();}
  $('sharedSearch').oninput=render;
@@ -39,6 +39,7 @@ export async function initSharedLibrary({user,addToPersonal}){
  $('sharedUploadForm').onsubmit=async event=>{
   event.preventDefault();if(!admin||$('sharedSave').disabled)return;$('sharedSave').disabled=true;let draftId;
   try{
+   await fillTitle();
    const youtube=$('sharedSource').value==='youtube',link=youtube?parseYouTubeLink($('sharedYouTubeUrl').value):null,file=youtube?null:$('sharedAudio').files[0],subtitle=$('sharedCaption').files[0],name=$('sharedName').value.trim();
    if(!name||name.length>150)throw Error('Nhập tên bài, tối đa 150 ký tự.');
    if(!youtube&&(!file||!file.size||file.size>uploadLimit))throw Error('Chọn audio có dung lượng tối đa '+Math.floor(uploadLimit/1024/1024)+' MB.');

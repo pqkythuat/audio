@@ -53,7 +53,7 @@ async function init(){
   const recheck=async()=>{try{const next=await api('/api/session');if(!next.user||next.user.id!==state.user.id)location.reload();}catch{}};
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)recheck();});setInterval(recheck,60000);
  }
- const app=await import('./app.js?v=30');
- if(state.user){const {initSharedLibrary}=await import('./shared-library.js?v=30');await initSharedLibrary({user:state.user,addToPersonal:app.addSharedToPersonal});}
+ const app=await import('./app.js?v=31');
+ if(state.user){const {initSharedLibrary}=await import('./shared-library.js?v=31');await initSharedLibrary({user:state.user,addToPersonal:app.addSharedToPersonal,setSharedLibrary:app.setSharedLibrary});}
 }
 init().catch(e=>message(e.message));

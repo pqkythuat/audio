@@ -1,6 +1,7 @@
 import assets from '#site-assets';
 import {createCloudAuth,json} from './auth.js';
 import {sharedApi} from './shared.js';
+import {parseYouTubeLink} from '../dist/youtube.js';
 const auth=createCloudAuth();
 export default {
  async fetch(request,env){
@@ -8,6 +9,12 @@ export default {
   try{
    if(path.startsWith('/api/')){
     const result=await auth.handle(request,env);if(result instanceof Response)return result;
+    if(path==='/api/youtube/title'&&request.method==='GET'){
+     let link;try{link=parseYouTubeLink(new URL(request.url).searchParams.get('url')||'');}catch{return json({error:'Link YouTube không hợp lệ.'},400);}
+     const response=await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(link.youtubeUrl),{signal:AbortSignal.timeout(6000)});
+     if(!response.ok)return json({error:'Không lấy được tiêu đề. Bạn có thể nhập tên bài.'},404);
+     const data=await response.json();return json({title:String(data.title||'').slice(0,150)});
+    }
     const shared=await sharedApi(request,env,result.user);if(shared)return shared;
     if(path==='/api/youtube/captions')return json({error:'Lấy phụ đề trực tiếp cần dịch vụ xử lý YouTube riêng. Bạn có thể tải SRT/VTT lên.'},503);
     return json({error:'Không tìm thấy chức năng.'},404);
