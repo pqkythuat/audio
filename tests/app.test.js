@@ -103,4 +103,11 @@ test('application lifecycle regressions',async t=>{
   const oldVideo=video;await $('library').children.map(row=>row.children[0]).find(b=>b.children[0]?.textContent==='one').click();await delay();assert.equal(oldVideo.destroyed,true);assert.equal(audio.hidden,false);assert.equal($('youtubePanel').hidden,true);assert.equal($('youtubeControls').hidden,true);
   $('add').click();$('sourceType').value='youtube';$('youtubeUrl').value='https://evil.example/video';$('name').value='Invalid link';const count=(await all()).length;await $('uploadForm').onsubmit({preventDefault(){}});assert.equal((await all()).length,count);assert.ok($('formError').textContent);$('close').click();delete globalThis.YT;
  });
+ await t.test('study editor preserves stable segment IDs through legacy refresh and keeps old audio',async()=>{
+  await app.studyOpenLesson('one');const context=app.studyContext(),first=context.book.cues[0],snapshot=await app.studySnapshot();snapshot.books=snapshot.books.filter(b=>b.id==='one');snapshot.files=snapshot.files.filter(f=>f.id==='one');
+  await app.studyApply({...context.book,subtitle_version_id:'editor-version',cues:context.book.cues.map((c,i)=>i?c:{...c,text:'Edited safely'}),caption:'1\n00:00:01,000 --> 00:00:04,000\nEdited safely\n\n2\n00:00:18,000 --> 00:00:20,000\nLast'});
+  assert.equal((await read('one')).cues[0].segment_id,first.segment_id);assert.equal((await read('one')).subtitle_version_id,'editor-version');
+  await app.studyRestore(snapshot);assert.equal((await read('one')).cues[0].text,'Edited safely');assert.ok((await all()).some(b=>b.id!=='one'&&b.cues[0]?.text===first.text));
+  assert.ok((await app.studySnapshot()).files.find(f=>f.id==='one').blob.size>0);
+ });
 });

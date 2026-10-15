@@ -1,4 +1,5 @@
 import {bindAutoTitle} from './auto-title.js?v=31';
+import {identifyLesson} from './study-core.js?v=35';
 import {sentenceBlocks,nextRepeat} from './practice.js?v=12';
 import {parseCaptions,parseRange,formatTime,cleanCaption,captionNeighbors} from './core.js?v=8';
 import {toIPA} from './ipa.js?v=8';
@@ -93,10 +94,10 @@ export async function addSharedToPersonal(shared,blob){
  if(!db)throw Error('Thư viện cá nhân chưa sẵn sàng.');
  const existing=books.find(b=>b.sharedSourceId===shared.id);
  if(existing){await openBook(existing.id);return;}
- const book={id:'shared-copy-'+shared.id,sharedSourceId:shared.id,name:shared.name,filename:shared.filename,type:shared.source==='youtube'?'youtube':blob.type||shared.type,size:blob?.size||0,duration:shared.duration,caption:shared.caption,cues:shared.cues.map(c=>({...c})),created:Date.now(),position:0,speed:1,selected:[],offset:0,...(shared.source==='youtube'?{source:'youtube',youtubeId:shared.youtubeId,youtubeUrl:shared.youtubeUrl}:{})};
+ const book={id:'shared-copy-'+shared.id,sharedSourceId:shared.id,name:shared.name,filename:shared.filename,type:shared.source==='youtube'?'youtube':blob?.type||shared.type,size:blob?.size||0,duration:shared.duration,caption:shared.caption,cues:shared.cues.map(c=>({...c})),created:Date.now(),position:0,speed:1,selected:[],offset:0,...(shared.source==='youtube'?{source:'youtube',youtubeId:shared.youtubeId,youtubeUrl:shared.youtubeUrl}:{})};
  await writeBoth(book,blob);await refresh();await openBook(book.id);
 }
-async function refresh(){books=(await request('books','getAll')).sort((a,b)=>b.created-a.created);for(const book of books){let parsed;try{parsed=typeof book.caption==='string'&&book.caption.trim()?parseCaptions(book.caption):book.cues.map(c=>({...c,text:cleanCaption(c.text)})).filter(c=>c.text);}catch{parsed=book.cues.map(c=>({...c,text:cleanCaption(c.text)})).filter(c=>c.text);}if(JSON.stringify(parsed)===JSON.stringify(book.cues))continue;const sameTiming=parsed.length===book.cues.length&&parsed.every((c,i)=>c.start===book.cues[i].start&&c.end===book.cues[i].end);if(!sameTiming)book.selected=(book.selected||[]).map(i=>{const old=book.cues[i];return old?parsed.findIndex(c=>c.start===old.start&&c.end===old.end&&c.text===cleanCaption(old.text)):-1;}).filter(i=>i>=0);book.cues=parsed;await request('books','put',book);}renderLibrary();await storage();}
+async function refresh(){books=(await request('books','getAll')).sort((a,b)=>b.created-a.created);for(const book of books){let parsed;try{parsed=typeof book.caption==='string'&&book.caption.trim()?parseCaptions(book.caption):book.cues.map(c=>({...c,text:cleanCaption(c.text)})).filter(c=>c.text);}catch{parsed=book.cues.map(c=>({...c,text:cleanCaption(c.text)})).filter(c=>c.text);}parsed=parsed.map(c=>{const old=book.cues.find(x=>x.start===c.start&&x.end===c.end&&x.text===c.text);return old?.segment_id?{...old,...c}:c;});if(JSON.stringify(parsed)===JSON.stringify(book.cues))continue;const sameTiming=parsed.length===book.cues.length&&parsed.every((c,i)=>c.start===book.cues[i].start&&c.end===book.cues[i].end);if(!sameTiming)book.selected=(book.selected||[]).map(i=>{const old=book.cues[i];return old?parsed.findIndex(c=>c.start===old.start&&c.end===old.end&&c.text===cleanCaption(old.text)):-1;}).filter(i=>i>=0);book.cues=parsed;await request('books','put',book);}renderLibrary();await storage();}
 function renderLibrary(){const q=$('search').value.toLocaleLowerCase('vi'),onlyPinned=$('pinFilter').checked,sharedIds=new Set(sharedEntries.map(b=>b.id)),personal=books.filter(b=>!sharedIds.has(b.sharedSourceId));$('count').textContent=personal.length+sharedEntries.length;$('library').replaceChildren();const filtered=personal.map(b=>({...b,shared:false})).concat(sharedEntries.map(b=>({...b,shared:true}))).filter(b=>b.name.toLocaleLowerCase('vi').includes(q)&&(!onlyPinned||b.pinned)).sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||(b.created||0)-(a.created||0));if(!filtered.length){const p=document.createElement('p');p.style.fontSize='12px';p.textContent=q?'Không tìm thấy bài nghe.':'Thư viện đang chờ bài nghe đầu tiên.';$('library').append(p);}for(const b of filtered){if(b.shared){$('library').append(sharedRow(b));continue;}const row=document.createElement('div');row.className='book'+(active?.id===b.id?' active':'');const button=document.createElement('button');button.className='book-open';const title=document.createElement('b');title.textContent=(b.pinned?'📌 ':'')+b.name;const details=document.createElement('small');details.textContent=`Của tôi · ♫ ${formatTime(b.duration)} · ${b.source==='youtube'?'YouTube':size(b.size)} · ${b.cues.length?b.cues.length+' đoạn':'Chưa có phụ đề'}`;const progress=document.createElement('div');progress.className='progress';const bar=document.createElement('span');bar.style.width=`${Math.min(100,(b.position||0)/b.duration*100)||0}%`;progress.append(bar);button.append(title,details,progress);button.onclick=()=>safe(()=>openBook(b.id));const actions=document.createElement('div');actions.className='book-actions';const edit=document.createElement('button');edit.textContent='Chỉnh sửa';edit.setAttribute('aria-label',`Chỉnh sửa ${b.name}`);edit.onclick=()=>showForm(true,b);const remove=document.createElement('button');remove.textContent='Xóa';remove.className='danger';remove.setAttribute('aria-label',`Xóa ${b.name}`);remove.onclick=()=>safe(()=>deleteBook(b));const pin=document.createElement('button');pin.textContent=b.pinned?'Bỏ ghim':'Ghim';pin.setAttribute('aria-pressed',String(!!b.pinned));pin.onclick=()=>safe(async()=>{const original=books.find(x=>x.id===b.id);original.pinned=!original.pinned;if(active?.id===b.id)active.pinned=original.pinned;await request('books','put',original);renderLibrary();});actions.append(edit,remove,pin);row.append(button,actions);$('library').append(row);}}
 async function storage(){const total=books.reduce((n,b)=>n+b.size,0);$('usage').textContent=`${books.length} bài · ${size(total)} đã lưu`;try{const info=await navigator.storage?.estimate();if(info?.quota)$('usage').textContent+=` · Quota trình duyệt ${size(info.quota)}`;}catch{}}
 async function saveProgress(){if(!active||!mediaReady)return;const book={...active};book.position=audio.currentTime||0;book.speed=audio.playbackRate;book.selected=[...selection];book.offset=Number($('offset').value)||0;Object.assign(active,book);await request('books','put',book);const index=books.findIndex(b=>b.id===book.id);if(index>=0)books[index]=book;}
@@ -107,10 +108,10 @@ async function openBook(id){
  cancelRest();const sequence=++openSequence;await saveProgress();
  const book=books.find(b=>b.id===id);if(!book)throw Error('Không tìm thấy bài nghe.');
  const file=book.source==='youtube'?null:await request('files','get',id);
- if(sequence!==openSequence)return;if(book.source!=='youtube'&&!file?.blob)throw Error('Không tìm thấy audio. Hãy khôi phục từ bản sao lưu.');
+ if(sequence!==openSequence)return;if(book.source!=='youtube'&&!file?.blob&&!book.sharedSourceId)throw Error('Không tìm thấy audio. Hãy khôi phục từ bản sao lưu.');
  mediaReady=false;audio.pause();audio.clearYouTube();resetLoop();if(url){URL.revokeObjectURL(url);url=null;}
  active=book;$('range').value='';selection=(active.selected||[]).filter(i=>i>=0&&i<active.cues.length);clearWordHighlight();timelines=active.cues.map(estimateWords);lastCue=-1;
- if(book.source!=='youtube'){url=URL.createObjectURL(file.blob);audio.src=url;setSpeed(active.speed||1,false);}
+ if(book.source!=='youtube'){if(file?.blob){url=URL.createObjectURL(file.blob);audio.src=url;}else audio.src='/api/shared/'+book.sharedSourceId+'/audio';setSpeed(active.speed||1,false);}
  $('offset').value=active.offset||0;$('title').textContent=active.name;$('details').textContent=book.source==='youtube'?'YouTube · Cần kết nối mạng':`${formatTime(active.duration)} · ${size(active.size)} · ${active.filename}`;
  $('youtubeControls').hidden=book.source!=='youtube';youtubeBar.render();$('youtubeExternal').hidden=book.source!=='youtube';$('youtubeExternal').href=book.source==='youtube'?book.youtubeUrl:'';$('empty').hidden=true;$('player').hidden=false;$('listeningDock').hidden=false;showLibrary(false);measureDock();$('subtitle').textContent='Bấm phát để bắt đầu nghe.';$('mainIPA').textContent='';$('mainIPA').hidden=true;contextKey='';updateContext(-1,0);$('captionTools').hidden=!active.cues.length;renderCues();renderLibrary();setSentencePanel(true,false);
  audio.onloadedmetadata=()=>{if(sequence!==openSequence||active?.id!==book.id)return;
@@ -123,7 +124,7 @@ function renderCues(){clearWordHighlight();cueWordViews=[];lastCue=-2;$('cues').
 function loopBlocks(){return sentenceBlocks(active.cues,selection,active.offset||0,active.duration);}
 function selectionChanged(){cancelRest();repeatIndex=0;repeatPlayed=1;blocks=loopBlocks();if(!blocks.length&&mode==='sentence'){resetLoop();toast('Không có đoạn hợp lệ để lặp với độ lệch hiện tại.');}$('selectedCount').textContent=`${selection.length}/${active.cues.length}`;safe(saveProgress);}
 function constrainSelectedPlayback(){
- if(!active||!mediaReady||!selection.length||mode==='sentence'||mode==='replay'||mode==='item')return true;
+ if(!active||!mediaReady||!selection.length||mode==='sentence'||mode==='replay'||mode==='item'||mode==='study')return true;
  let allowed=loopBlocks();
  if(mode==='ab'&&B>A)allowed=allowed.map(b=>({...b,start:Math.max(b.start,A),end:Math.min(b.end,B)})).filter(b=>b.end>b.start);
  if(!allowed.length){audio.pause();return false;}
@@ -163,7 +164,8 @@ $('uploadForm').onsubmit=async e=>{
   const cues=caption||downloaded&&!$('removeCaption').checked?parseCaptions(text):$('removeCaption').checked?[]:retained?.cues||[];
   if(duration>0&&cues.some(c=>c.start>=duration+.5))throw Error('Phụ đề có đoạn bắt đầu sau khi bài kết thúc. Kiểm tra lại file.');
   const book={...(editing||{}),id:editing?.id||crypto.randomUUID(),name,created:editing?.created||Date.now(),source:youtube?'youtube':'audio',filename:youtube?'YouTube':file?.name||editing?.filename,type:youtube?'youtube':file?.type||(editing?.source==='youtube'?'audio/mpeg':editing?.type)||'audio/mpeg',size:youtube?0:file?.size||editing?.size,duration,caption:text,cues,position:changed?0:editing?.position||0,speed:editing?.speed||1,selected:caption||downloaded||changed||$('removeCaption').checked?[]:editing?.selected||[],offset:editing?.offset||0};
-  if(youtube)Object.assign(book,link);else{delete book.youtubeId;delete book.youtubeUrl;}
+  if(editing?.subtitle_version_id&&(caption||downloaded||$('removeCaption').checked)){book.subtitle_version_id=crypto.randomUUID();book.cues=book.cues.map(c=>({...c,segment_id:c.segment_id||crypto.randomUUID()}));}
+  if(file||changed)book.audio_revision=crypto.randomUUID();if(youtube)Object.assign(book,link);else{delete book.youtubeId;delete book.youtubeUrl;}
   const updating=active?.id===book.id,wasPlaying=updating&&!audio.paused;
   if(updating){mediaReady=false;audio.pause();book.position=changed?0:audio.currentTime;}
   try{await writeBoth(book,file);}catch(error){if(updating){mediaReady=true;if(wasPlaying)safe(playAudio);}throw error;}
@@ -191,3 +193,42 @@ if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js').then
 
 audio.addEventListener('autoplayblocked',()=>toast('Bấm nút phát trên thanh nghe để tiếp tục. Nếu vẫn bị chặn, hãy mở link trên YouTube.'));
 audio.addEventListener('ratechange',()=>{for(const [id,rate]of [['speedDefault',1],['speed075',.75],['speed050',.5]]){const selected=audio.playbackRate===rate;$(id).setAttribute('aria-pressed',String(selected));$(id).classList.toggle('speed-selected',selected);}safe(saveProgress);});
+
+let studyRanges=[],studyRangeIndex=0,studyAnswerVisibility=null;
+export function studyContext(){return {book:active?identifyLesson(active):null,selection:[...selection],cueIndex:lastCue,position:audio.currentTime,duration:active?.duration||0,paused:audio.paused};}
+export async function studyTransport(action,value){if(action==='seek'){studyRanges=[];resetLoop();audio.currentTime=Math.max(0,Math.min(value,active?.duration||0));}else if(action==='speed')setSpeed(value);else if(action==='toggle'){if(audio.paused)await playAudio();else audio.pause();}}
+export async function studyPause(){audio.pause();studyRanges=[];resetLoop();await saveProgress();}
+export async function studyPlay(cues){
+ if(!active||!mediaReady)throw Error('Audio đang tải hoặc chưa mở bài.');resetLoop();mode='study';studyRanges=cues.map(c=>({start:Math.max(0,c.start+(active.offset||0)),end:Math.min(active.duration||Infinity,c.end+(active.offset||0))})).filter(c=>c.end>c.start);studyRangeIndex=0;
+ if(!studyRanges.length)throw Error('Câu nằm ngoài thời lượng với độ lệch hiện tại.');audio.currentTime=studyRanges[0].start;await playAudio();
+}
+audio.addEventListener('timeupdate',()=>{if(mode!=='study'||!studyRanges.length||audio.paused)return;const range=studyRanges[studyRangeIndex];if(audio.currentTime>=range.end){if(++studyRangeIndex<studyRanges.length)audio.currentTime=studyRanges[studyRangeIndex].start;else{audio.pause();studyRanges=[];resetLoop();}}});
+export function studyHideAnswers(hide){if(hide){if(studyAnswerVisibility===null)studyAnswerVisibility=captionsHidden;captionsHidden=true;}else if(studyAnswerVisibility!==null){captionsHidden=studyAnswerVisibility;studyAnswerVisibility=null;}applyCaptionVisibility();}
+const studySettingKeys=['lang-nghe-repeat','lang-nghe-rest','lang-nghe-words','lang-nghe-ipa'];
+export async function studySnapshot({includeShared=false}={}){
+ await saveProgress();const list=await request('books','getAll'),files=await request('files','getAll'),settings={};for(const key of studySettingKeys)try{settings[key]=localStorage.getItem(key);}catch{}
+ if(includeShared)for(const book of list)if(book.source!=='youtube'&&book.sharedSourceId&&!files.some(f=>f.id===book.id)){const response=await fetch('/api/shared/'+book.sharedSourceId+'/audio');if(!response.ok)throw Error('Không sao lưu được audio dùng chung: '+book.name);files.push({id:book.id,blob:await response.blob()});}
+ return {schema_version:1,books:list,files,settings};
+}
+export async function studySettings(values={}){for(const key of studySettingKeys)if(Object.hasOwn(values,key))try{if(values[key]===null)localStorage.removeItem(key);else localStorage.setItem(key,String(values[key]));}catch{}for(const [id,key]of [['repeatCount','lang-nghe-repeat'],['repeatRest','lang-nghe-rest']])if(values[key]!==null&&values[key]!==undefined)$(id).value=values[key];if(values['lang-nghe-words']!==undefined)$('wordToggle').checked=values['lang-nghe-words']!=='off';if(values['lang-nghe-ipa']!==undefined)$('ipaToggle').checked=values['lang-nghe-ipa']!=='off';if(active)renderCues();}
+export async function studyApply(book){
+ await saveProgress();const existing=books.find(b=>b.id===book.id);if(!existing)throw Error('Không tìm thấy bài nghe.');audio.pause();resetLoop();const next={...existing,lesson_id:book.lesson_id,subtitle_version_id:book.subtitle_version_id,cues:book.cues.map(c=>({...c})),caption:book.caption,selected:[]};await request('books','put',next);if(active?.id===next.id){active=next;selection=[];timelines=active.cues.map(estimateWords);contextKey='';renderCues();}await refresh();
+}
+export async function studyOpenLesson(lessonId){const book=books.find(b=>(b.lesson_id||b.sharedSourceId||b.id)===lessonId);if(!book)throw Error('Bài nguồn chưa có trên thiết bị này.');await openBook(book.id);if(!mediaReady)await new Promise((resolve,reject)=>{const start=Date.now();const timer=setInterval(()=>{if(mediaReady){clearInterval(timer);resolve();}else if(Date.now()-start>15000){clearInterval(timer);reject(Error('Không tải được audio nguồn.'));}},100);});}
+export async function studyReceiveLesson(record,blob){
+ const {kind,revision,operation_id,dirty,owner,book_id,...rest}=record;const book={...rest,id:book_id||record.id};delete book.audio_hash;const updating=active?.id===book.id;if(updating){await studyPause();active=null;}
+ if(!Array.isArray(book.cues)||typeof book.name!=='string')throw Error('Metadata bài nghe không hợp lệ.');await writeBoth(book,blob);await refresh();if(updating)await openBook(book.id);
+}
+export function studyValidateSnapshot(snapshot){
+ if(snapshot?.schema_version!==1||!Array.isArray(snapshot.books)||!Array.isArray(snapshot.files))throw Error('Bản sao thư viện không hợp lệ.');
+ for(const b of snapshot.books)if(typeof b.id!=='string'||typeof b.name!=='string'||!Array.isArray(b.cues)||b.cues.some(c=>!Number.isFinite(c.start)||!Number.isFinite(c.end)||c.start<0||c.end<=c.start||typeof c.text!=='string'))throw Error('Bài nghe trong bản sao không hợp lệ.');
+ for(const f of snapshot.files)if(typeof f.id!=='string'||!(f.blob instanceof Blob)||f.blob.size>200*1024*1024)throw Error('Audio trong bản sao không hợp lệ hoặc quá 200 MB.');
+ for(const b of snapshot.books){if(b.source==='youtube')parseYouTubeLink(b.youtubeUrl);else if(!b.sharedSourceId&&!snapshot.files.some(f=>f.id===b.id))throw Error('Bản sao bị thiếu audio.');}
+}
+export async function studyRestore(snapshot){studyValidateSnapshot(snapshot);
+ const existing=new Map(books.map(b=>[b.id,b]));const rows=snapshot.books.map(b=>{const old=existing.get(b.id),conflict=old&&JSON.stringify(old)!==JSON.stringify(b);return {book:{...b,id:conflict?crypto.randomUUID():b.id},blob:snapshot.files.find(f=>f.id===b.id)?.blob};});
+ if(rows.some(r=>r.book.source!=='youtube'&&!r.blob&&!r.book.sharedSourceId))throw Error('Bản sao bị thiếu audio.');
+ await new Promise((resolve,reject)=>{const tx=db.transaction(['books','files'],'readwrite');for(const {book,blob}of rows){tx.objectStore('books').put(book);if(blob)tx.objectStore('files').put({id:book.id,blob});}tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});await studySettings(snapshot.settings);await refresh();
+}
+export async function studyPublish(id,cues){const response=await fetch('/api/shared/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({caption:subtitleFromStudy(cues),cues})});const result=await response.json();if(!response.ok)throw Error(result.error);}
+function subtitleFromStudy(cues){return cues.map((c,i)=>{const stamp=t=>{const ms=Math.round(t*1000);return [Math.floor(ms/3600000),Math.floor(ms/60000)%60,Math.floor(ms/1000)%60].map(n=>String(n).padStart(2,'0')).join(':')+','+String(ms%1000).padStart(3,'0');};return `${i+1}\n${stamp(c.start)} --> ${stamp(c.end)}\n${c.text}`;}).join('\n\n');}

@@ -1,6 +1,8 @@
 import assets from '#site-assets';
 import {createCloudAuth,json} from './auth.js';
 import {sharedApi} from './shared.js';
+import {studyApi} from './study.js';
+import {ensureUpgradeBackup} from './upgrade-backup.js';
 import {parseYouTubeLink} from '../dist/youtube.js';
 const auth=createCloudAuth();
 export default {
@@ -9,6 +11,8 @@ export default {
   try{
    if(path.startsWith('/api/')){
     const result=await auth.handle(request,env);if(result instanceof Response)return result;
+    if(!['GET','HEAD'].includes(request.method)&&(path.startsWith('/api/study')||path.startsWith('/api/shared'))){const backup=await ensureUpgradeBackup(env.BUCKET);if(backup)return backup;}
+    const study=await studyApi(request,env,result.user);if(study)return study;
     if(path==='/api/youtube/title'&&request.method==='GET'){
      let link;try{link=parseYouTubeLink(new URL(request.url).searchParams.get('url')||'');}catch{return json({error:'Link YouTube không hợp lệ.'},400);}
      const response=await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(link.youtubeUrl),{signal:AbortSignal.timeout(6000)});

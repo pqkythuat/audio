@@ -35,8 +35,16 @@ export async function sharedApi(request,env,user){
   return new Response(request.method==='HEAD'?null:object.body,{status,headers});
  }
  if(!audio&&request.method==='PATCH'){
-  const data=await readJson(request);if(typeof data?.pinned!=='boolean')return json({error:'Trạng thái ghim không hợp lệ.'},400);
-  const updated={...book,pinned:data.pinned};if(!await write(updated,record.etag))return json({error:'Bài vừa thay đổi. Thử lại.'},409);return json({book:updated});
+  const data=await readJson(request,6*1024*1024);let updated;
+  if(typeof data?.caption==='string'){
+   let cues;try{cues=parseCaptions(data.caption);}catch{return json({error:'Phụ đề không hợp lệ.'},400);}
+   if(book.duration>0&&cues.some(c=>c.end>book.duration+.001))return json({error:'Phụ đề vượt thời lượng audio.'},400);
+   if(Array.isArray(data.cues)&&data.cues.length===cues.length)cues=cues.map((c,i)=>({...c,segment_id:typeof data.cues[i].segment_id==='string'?data.cues[i].segment_id:crypto.randomUUID(),source_segment_ids:Array.isArray(data.cues[i].source_segment_ids)?data.cues[i].source_segment_ids:[]}));
+   await bucket.put('shared/history/'+id+'/'+crypto.randomUUID()+'.json',JSON.stringify({...book,archived_at:new Date().toISOString()}));
+   updated={...book,lesson_id:book.lesson_id||id,subtitle_version_id:crypto.randomUUID(),caption:data.caption,cues};
+  }else if(typeof data?.pinned==='boolean')updated={...book,pinned:data.pinned};
+  else return json({error:'Nội dung cập nhật không hợp lệ.'},400);
+  if(!await write(updated,record.etag))return json({error:'Bài vừa thay đổi. Thử lại.'},409);return json({book:updated});
  }
  if(!audio&&request.method==='DELETE'){await bucket.delete('shared/meta/'+id+'.json');await bucket.delete('shared/audio/'+id);return json({ok:true});}
  return json({error:'Thao tác không được hỗ trợ.'},405);

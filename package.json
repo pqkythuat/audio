@@ -13,7 +13,8 @@
   "devDependencies": {
     "cmu-pronouncing-dictionary": "^3.0.0",
     "esbuild": "^0.28.2",
-    "fake-indexeddb": "^6.2.5"
+    "fake-indexeddb": "^6.2.5",
+    "linkedom": "^0.18.13"
   },
   "dependencies": {
     "google-auth-library": "^11.3.0",

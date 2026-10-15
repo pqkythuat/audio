@@ -21,15 +21,19 @@ async function loadAccounts(){
 }
 el('accountButton').onclick=()=>el('accountDialog').showModal();
 el('closeAccount').onclick=()=>el('accountDialog').close();
-el('logout').onclick=async()=>{try{await api('/api/logout',{method:'POST'});globalThis.google?.accounts.id.disableAutoSelect();location.reload();}catch(e){message(e.message);}};
+el('logout').onclick=async()=>{try{await api('/api/logout',{method:'POST'});try{localStorage.removeItem('lang-nghe-offline-account');}catch{}globalThis.google?.accounts.id.disableAutoSelect();location.reload();}catch(e){message(e.message);}};
 el('manageAccounts').onclick=async()=>{try{el('accountAdmin').hidden=false;await loadAccounts();}catch(e){message(e.message);}};
 async function init(){
  const staticHosting=document.querySelector?.('meta[name="app-runtime"]')?.content==='static';
  if(staticHosting){globalThis.langNgheStaticHosting=true;state={configured:false,demo:false,user:null};}
- else try{state=await api('/api/session');}catch{el('accountButton').textContent='Tài khoản';message('Không kết nối được dịch vụ tài khoản.');el('authGate').hidden=false;el('authGateMessage').textContent='Không kết nối được máy chủ. Kết nối mạng và tải lại để đăng nhập.';return;}
+ else try{state=await api('/api/session');}catch{
+  if(navigator.onLine===false)try{const cached=JSON.parse(localStorage.getItem('lang-nghe-offline-account')||'null');if(cached?.user?.id){state=cached;message('Đang ngoại tuyến. Dữ liệu trên thiết bị vẫn có thể dùng; cần đăng nhập hợp lệ khi đồng bộ.');}}catch{}
+  if(!state){el('accountButton').textContent='Tài khoản';message('Không kết nối được dịch vụ tài khoản.');el('authGate').hidden=false;el('authGateMessage').textContent='Không kết nối được máy chủ. Kết nối mạng và tải lại để đăng nhập.';return;}
+ }
  if(!state.configured&&!state.demo){
   el('accountButton').textContent=staticHosting?'Trên thiết bị':'Tài khoản';el('accountSummary').textContent=staticHosting?'Thư viện trên thiết bị này':'Chưa cấu hình đăng nhập Google';message(staticHosting?'Bản công khai hiện lưu bài trên thiết bị. Đăng nhập, quản lý tài khoản và thư viện chung cần kết nối máy chủ.':'Cần cấu hình Google Client ID trên máy chủ để bật đăng nhập.');
  }else if(!state.user){
+  try{localStorage.removeItem('lang-nghe-offline-account');}catch{}
   el('authGate').hidden=false;el('appMain').hidden=true;el('openLibrary').hidden=true;
   el('accountButton').textContent='Đăng nhập';el('accountSummary').textContent='Đăng nhập với Google';
   if(state.demo){
@@ -46,6 +50,7 @@ async function init(){
   script.onload=()=>{google.accounts.id.initialize({client_id:state.clientId,...(state.nonce?{nonce:state.nonce}:{}),callback:async({credential})=>{el('authGateMessage').textContent='Đang đăng nhập…';try{await api('/api/login',{method:'POST',body:JSON.stringify({credential})});location.reload();}catch(e){el('authGateMessage').textContent=e.message;}}});for(const id of ['googleSignIn','accountGoogleSignIn'])google.accounts.id.renderButton(el(id),{theme:'outline',size:'large',text:'signin_with',locale:'vi'});};
   script.onerror=()=>{el('authGateMessage').textContent='Không tải được đăng nhập Google. Kiểm tra kết nối và tải lại.';};document.head.append(script);return;
  }else{
+  try{localStorage.setItem('lang-nghe-offline-account',JSON.stringify({configured:true,demo:!!state.demo,user:state.user,sharedUploadMaxBytes:state.sharedUploadMaxBytes}));}catch{}
   el('accountButton').textContent=state.user.name;el('accountSummary').textContent=state.user.name;el('accountEmail').textContent=state.user.email;el('accountRole').textContent=state.user.role==='admin'?'Quản trị viên':'Thành viên';el('logout').hidden=false;el('manageAccounts').hidden=state.user.role!=='admin';
   globalThis.langNgheAccountId=state.user.id;globalThis.langNgheSharedUploadMaxBytes=state.sharedUploadMaxBytes;
   if(state.demo)message('Đang dùng tài khoản thử nghiệm trên máy này. Chưa kết nối Google.');
@@ -53,7 +58,7 @@ async function init(){
   const recheck=async()=>{try{const next=await api('/api/session');if(!next.user||next.user.id!==state.user.id)location.reload();}catch{}};
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)recheck();});setInterval(recheck,60000);
  }
- const app=await import('./app.js?v=31');
- if(state.user){const {initSharedLibrary}=await import('./shared-library.js?v=31');await initSharedLibrary({user:state.user,addToPersonal:app.addSharedToPersonal,setSharedLibrary:app.setSharedLibrary});}
+ const app=await import('./app.js?v=35');
+ if(state.user){try{const {initStudy}=await import('./study-ui.js?v=35');await initStudy({app,user:state.user});}catch(e){message('Không mở được chức năng luyện tập: '+e.message);}const {initSharedLibrary}=await import('./shared-library.js?v=35');await initSharedLibrary({user:state.user,addToPersonal:app.addSharedToPersonal,setSharedLibrary:app.setSharedLibrary});}
 }
 init().catch(e=>message(e.message));
