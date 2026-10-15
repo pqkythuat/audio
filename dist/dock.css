@@ -2,5 +2,6 @@
 :root .listening-dock span{font-size:inherit}.listening-dock .listening-stage{max-height:min(45dvh,calc(100dvh - 210px))}.listening-dock .current-card .subtitle,.listening-dock .main-ipa{overflow-wrap:anywhere}
 #previousCard{display:none}.current-card .subtitle{font-size:clamp(18px,2vw,22px)}.current-card .main-ipa{letter-spacing:.035em;word-spacing:.14em}
 .listening-dock.dock-collapsed .audio-panel .settings{display:none}
+.practice-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0}.practice-actions button{font-size:11px;padding:7px 10px;min-height:32px;border-radius:9px}.practice-actions #practiceStatus{font-size:11px;color:#526b52}.captions-concealed{visibility:hidden!important;pointer-events:none}.practice-options{padding:12px 0;border-top:1px solid #e5e9df}.practice-options label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.practice-options select{max-width:190px;font-size:12px}.practice-options .muted{line-height:1.7}
 @media(max-width:650px){.current-card .subtitle{font-size:19px}.listening-dock.dock-collapsed .current-card .subtitle{font-size:16px}}
 .library-add{width:100%;margin-top:16px}.listening-dock .audio-panel .settings{justify-content:flex-start}.listening-dock .audio-panel .settings .speed-controls{margin-right:auto}
